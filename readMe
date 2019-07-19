@@ -1,0 +1,63 @@
+# Polish API Server Mock
+
+Zrealizowany w GO serwer udostępniający usługi Polish API mockowane przy pomocy mechanizmu szablonów GO `text/template`.
+
+## Koncepcja działania
+
+1. Serwer udostępnia wszystkice usługi REST zdefiniowane w Polish API v2.0 i v2.1. 
+2. Każde wywołanie usługi  jest mockowane przy pomocy jednego z szablonów znalezionego w repozytorium szablonów, w ścieżce odpowiadającej URI wywołania. 
+  - Np. dla wywołania usługi CAF: `//v1.0/confirmation/v1.0/getConfirmationOfFunds` serwer będzie w repozytorium szablonów przeszukiwał folder `v1_0/confirmation/v1_0/getConfirmationOfFunds/`
+3. Szablony to pliki których nazwa ma postać `nazwa_mocka.KOD` gdzie
+  - `nazwa_mocka` - to wartość przekazana w nagłówku `Mock-Name` żądania HTTP. Jeśli `Mock-Name` nie zostało przakazane wybierany jest domyślna nazwa szablonu: `_default`
+  - `KOD` - to powiązany z szablonem kod statusu HTTP, który zostanie zwrócony w odpowiedzi HTTP do systemu wywołującego. Kod nie jest wykorzystywany przy wyszukiwaniu szablonów.
+4. Po znalezieniu szablonu jest on przetwarzany w odpowiedz HTTP przy pomocy mechanizmów z biblioteki `text/template`. Szablon ma dostęp do
+  - niejawnego obiektu powstałego z parsowania dokumentu JSON w treśći żądania POST, np: ` "requestId": "{{ .RequestHeader.RequestId }}", `
+  - funckji `now` zwracajacej bierzącą datę, np: ` "sendDate": "{{ now.Format "2006-01-02T15:04:05.999Z" }}", `
+5. Serwer przetwarza requesty i responsey na obiekty GO odpowiadające dokumentom JSON, właściwym danej usłudze Polish API - treść żądania HTTP do usługi jak i zawartość szablonu, z którego wygenerowana zostanie odpowiedz HTTP muszą mieśc struktórę zgodną z definicją Swagger danej usługi.
+Szczególnymi przypadkami są:
+  - szablony dla statusu `302` - zawartość tych szablonów powinna generować poprawny URL
+  - szablony dla statusów innych niż `200` i `302` - zawartość tych szablonów powinna generować wspólny dla wszystkich usług dokument JSON reprezentujący dane błądu.
+  - szablony dla usług, które dla statusy `200` nie zwracają danych w treści odpowiedzi - szablony dla takich usług powinny być pustymi plikami z rozszerzeniem `.200` 
+
+## Rozwój serwera
+
+1. Pobrać repozyrium: ```git clone http://@bitbucket.org/savangard/mockserver.git```→→
+  - W folderze `src/savangard.com/PolishAPI_v2_0_server/` znajduje się kod źródłowy GO rozwiązania, oraz projekt, który można otworzyć w IDE GoLand→→
+  - W folderze `templates/` znadjuje się repozytorium szablonów
+2. Ustawić w GoLand ścieżkę do pobranego repozytorium GIT, jako zmienną GOPATH (lokalną dla projektu)
+
+## Tworzenie dystrybucji
+
+1. Ustawić zmienne środowiskowe
+  ```
+  dla linuxa						dla windowsa
+  - `GOARCH` - arm64			- `GOARCH` - ard64
+  - `GOOS` - linux				- `GOOS` - windows
+  - `GOPATH` - pełna ścieżka do pobranego repozytorium GIT
+  ```
+2. pobrać biblioteki zależne:
+  - `go get -u github.com/gorilla/mux`
+  - `go get -u github.com/Knetic/govaluate`
+3. Uruchomić polecenie `go build savangard.com/PolishAPI_v2_0_server` - plik wynikowy `PolishAPI_v2_0_server` dla danego OS i architektury zostanie zapisany w bieżącym katalogu.
+
+## Uruchamianie serwera
+
+1. Umieścić wykonywalny plik `PolishAPI_v2_0_server` w katalogu `/opt/MockServer`. Nadać uprawnienia do wykonywania
+2. Umieścić zawartośćc repozytorium szablonów z folderu `templates/` w katalogu w którym znajduje się plik wykonywalny
+3. Wykonać polecenie: `nohup PolishAPI_v2_0_server &`
+4. Opcjonalnie uruchamiąc serwer można przekazać następujące flagi:
+  - `-p=<port>` - port na którym nasłuchuje serwer, domyślnie: `8080`
+  - `-r=<server root path>` - ścieżka w adresie URL, na której udostępniona są mocki
+  - `-d=<template repository dir>` - pełna ścieżka do repozytrium szablonów, domyślnie: `.`
+
+## Zależności
+
+* [GOLANG](https://golang.org/) - GO language 1.10.3
+* [GORILLA/MUX](https://github.com/gorilla/mux) - HTTP router
+* [KNETIC/GOVALUATE] (github.com/Knetic/govaluate) - ewaluacja dynamicznych warunków
+* [Polish API v2.0](https://docs.polishapi.org/ver2.0/PolishAPI-ver2.0.html) - implementowana specyfikacja 
+
+## Autorzy
+
+* **Sebastian Konik** - *Initial work*
+
